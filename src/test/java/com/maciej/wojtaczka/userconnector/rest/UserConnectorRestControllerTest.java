@@ -2,17 +2,14 @@ package com.maciej.wojtaczka.userconnector.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
-import com.github.tomakehurst.wiremock.client.WireMock;
-import com.maciej.wojtaczka.userconnector.config.TestConfig;
+import com.maciej.wojtaczka.userconnector.config.CassandraConfig;
 import com.maciej.wojtaczka.userconnector.domain.model.ConnectionRequest;
-import com.maciej.wojtaczka.userconnector.domain.model.User;
 import com.maciej.wojtaczka.userconnector.persistance.ConnectionRequestCassandraRepository;
 import com.maciej.wojtaczka.userconnector.persistance.entity.ConnectionRequestEntity;
 import com.maciej.wojtaczka.userconnector.rest.controller.dto.ConnectionRequestBody;
+import com.maciej.wojtaczka.userconnector.utils.UserFixtures;
 import lombok.SneakyThrows;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,18 +20,19 @@ import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
-import static com.maciej.wojtaczka.userconnector.rest.client.UserServiceRestClient.GET_USERS_BY_IDS;
 import static com.maciej.wojtaczka.userconnector.rest.controller.UserConnectorRestController.CONNECTION_REQUEST_URL;
+import static com.maciej.wojtaczka.userconnector.rest.controller.UserConnectorRestController.USER_PARAM;
 import static java.time.temporal.ChronoUnit.MILLIS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -43,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebAppConfiguration
 @AutoConfigureMockMvc
 @EmbeddedKafka(partitions = 1, brokerProperties = { "listeners=PLAINTEXT://localhost:9092", "port=9092" })
-@Import({ TestConfig.class })
+@Import({ CassandraConfig.class })
 class UserConnectorRestControllerTest {
 
 	@Autowired
@@ -55,22 +53,15 @@ class UserConnectorRestControllerTest {
 	@Autowired
 	private ConnectionRequestCassandraRepository repository;
 
-	private static WireMockServer wireMockServer;
+	@Autowired
+	private WireMockServer wireMockServer;
 
-	@BeforeAll
-	static void setupALl() {
-		wireMockServer = new WireMockServer(options().port(8081));
-		wireMockServer.start();
-	}
+	@Autowired
+	private UserFixtures $;
 
 	@BeforeEach
 	void setupEach() {
 		wireMockServer.resetAll();
-	}
-
-	@AfterAll
-	static void cleanup() {
-		wireMockServer.stop();
 	}
 
 	@Test
@@ -78,15 +69,13 @@ class UserConnectorRestControllerTest {
 		//given
 		UUID recipientId = UUID.randomUUID();
 		UUID requesterId = UUID.randomUUID();
+		$.user().withId(requesterId).exists();
+		$.user().withId(recipientId).exists();
+
 		ConnectionRequestBody requestBody = ConnectionRequestBody.builder()
 																 .requesterId(requesterId)
 																 .recipientId(recipientId)
 																 .build();
-
-		User requester = User.builder().id(requesterId).build();
-		User recipient = User.builder().id(recipientId).build();
-
-		userServiceWillReturn(recipient, requester);
 
 		//when
 		String jsonConnectionRequest = mockMvc.perform(post(CONNECTION_REQUEST_URL)
@@ -111,16 +100,34 @@ class UserConnectorRestControllerTest {
 		);
 	}
 
-	@SneakyThrows
-	private void userServiceWillReturn(User... users) {
+	@Test
+	void shouldFetchExistingConnectionRequestsForGivenUser() throws Exception {
+		//given
+		UUID recipientId = UUID.randomUUID();
+		UUID requesterId1 = UUID.randomUUID();
+		UUID requesterId2 = UUID.randomUUID();
+		UUID requesterId3 = UUID.randomUUID();
 
-		String jsonResponseBody = objectMapper.writeValueAsString(users);
+		$.user()
+		 .withId(recipientId)
+		 .withPendingConnectionRequest().fromRequester(requesterId1).atTime(Instant.parse("2007-12-03T10:15:30.00Z"))
+		 .andThisUser()
+		 .withPendingConnectionRequest().fromRequester(requesterId2).atTime(Instant.parse("2007-12-03T10:16:30.00Z"))
+		 .andThisUser()
+		 .withPendingConnectionRequest().fromRequester(requesterId3).atTime(Instant.parse("2007-12-03T10:17:30.00Z"))
+		 .andThisUser()
+		 .exists();
 
-		ResponseDefinitionBuilder response = WireMock.aResponse()
-													 .withHeader("Content-type", "application/json")
-													 .withBody(jsonResponseBody);
-		wireMockServer.stubFor(WireMock.get(WireMock.urlEqualTo(GET_USERS_BY_IDS))
-							   .willReturn(response));
+		//when
+		mockMvc.perform(get(CONNECTION_REQUEST_URL)
+								.param(USER_PARAM, recipientId.toString())
+								.accept(APPLICATION_JSON))
+			   //then
+			   .andExpect(status().isOk())
+			   .andExpect(jsonPath("$", Matchers.hasSize(3)))
+			   .andExpect(jsonPath("$[0].requesterId", equalTo(requesterId3.toString())))
+			   .andExpect(jsonPath("$[1].requesterId", equalTo(requesterId2.toString())))
+			   .andExpect(jsonPath("$[2].requesterId", equalTo(requesterId1.toString())));
 
 	}
 

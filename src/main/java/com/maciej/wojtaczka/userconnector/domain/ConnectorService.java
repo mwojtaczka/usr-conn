@@ -7,6 +7,9 @@ import org.springframework.stereotype.Service;
 import javax.validation.constraints.NotNull;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+
+import static java.util.Comparator.comparing;
 
 @Service
 public class ConnectorService {
@@ -45,5 +48,11 @@ public class ConnectorService {
 				 .forEach(domainEventPublisher::publish);
 
 		return connectionRequestRepository.save(connectionRequest);
+	}
+
+	public List<ConnectionRequest> fetchPendingRequests(UUID recipientId) {
+		return connectionRequestRepository.findByRecipientId(recipientId).stream()
+										  .sorted(comparing(ConnectionRequest::getCreationTime).reversed())
+										  .collect(Collectors.toList());
 	}
 }
