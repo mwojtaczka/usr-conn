@@ -31,11 +31,33 @@ public class User extends DomainModel {
 		return connectionRequest;
     }
 
+	public Connection acceptRequest(ConnectionRequest connectionRequest) {
+
+		if (!connectionRequest.getRecipientId().equals(id)) {
+			throw new IllegalStateException("Recipient id does not match");
+		}
+
+		Connection newConnection = Connection.builder()
+											 .user1(connectionRequest.getRecipientId())
+											 .user2(connectionRequest.getRequesterId())
+											 .connectionDate(Instant.now())
+											 .build();
+
+		addEventToPublish(DomainEvents.connectionCreated(newConnection));
+
+		return newConnection;
+	}
+
 	public static class DomainEvents {
 		public static final String CONNECTION_REQUESTED = "connection-requested";
+		public static final String CONNECTION_CREATED = "connection-created";
 
 		static DomainEvent<ConnectionRequest> connectionRequested(ConnectionRequest connectionRequest) {
 			return new DomainEvent<>(CONNECTION_REQUESTED, connectionRequest);
+		}
+
+		static DomainEvent<Connection> connectionCreated(Connection connection) {
+			return new DomainEvent<>(CONNECTION_CREATED, connection);
 		}
 
 	}

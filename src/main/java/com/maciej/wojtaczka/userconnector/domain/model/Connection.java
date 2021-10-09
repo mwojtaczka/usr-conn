@@ -8,12 +8,10 @@ import java.util.UUID;
 
 @Builder
 @Value
-public class ConnectionRequest {
+public class Connection {
 
-	UUID requesterId;
-	UUID recipientId;
-	Instant creationTime;
+	UUID user1;
+	UUID user2;
+	Instant connectionDate;
 
 }
-
-

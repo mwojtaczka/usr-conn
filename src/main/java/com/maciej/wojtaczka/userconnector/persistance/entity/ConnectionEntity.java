@@ -10,19 +10,19 @@ import org.springframework.data.cassandra.core.mapping.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-@Table("connection_request")
+@Table("connection")
 @Builder
 @Value
-public class ConnectionRequestEntity {
+public class ConnectionEntity {
 
-	@PrimaryKeyColumn(type = PrimaryKeyType.PARTITIONED, name = "recipient_id")
-	UUID recipientId;
+	@PrimaryKeyColumn(type = PrimaryKeyType.PARTITIONED, name = "user1")
+	UUID user1;
 
-	@PrimaryKeyColumn(type = PrimaryKeyType.CLUSTERED, name = "requester_id")
-	UUID requesterId;
+	@PrimaryKeyColumn(type = PrimaryKeyType.CLUSTERED, name = "user2")
+	UUID user2;
 
-	@PrimaryKeyColumn(type = PrimaryKeyType.CLUSTERED, ordering = Ordering.DESCENDING, name = "creation_time")
-	Instant creationTime;
+	@PrimaryKeyColumn(type = PrimaryKeyType.CLUSTERED, ordering = Ordering.DESCENDING, name = "connection_date")
+	Instant connectionDate;
 
 
 }

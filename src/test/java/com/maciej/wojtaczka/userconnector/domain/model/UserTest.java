@@ -58,4 +58,53 @@ class UserTest {
 		);
 	}
 
+	@Test
+	void shouldAcceptConnectionRequest() {
+		//given
+		UUID recipientId = UUID.randomUUID();
+		UUID requesterId = UUID.randomUUID();
+		User recipient = User.builder()
+							 .id(recipientId)
+							 .build();
+		ConnectionRequest connectionRequest = ConnectionRequest.builder()
+															   .recipientId(recipientId)
+															   .requesterId(requesterId)
+															   .build();
+
+		//when
+		Connection connection = recipient.acceptRequest(connectionRequest);
+
+		//then
+		Assertions.assertAll(
+				() -> assertThat(connection.getUser1()).isEqualTo(recipientId),
+				() -> assertThat(connection.getUser2()).isEqualTo(requesterId),
+				() -> assertThat(connection.getConnectionDate()).isNotNull()
+		);
+	}
+
+	@Test
+	void shouldCreateConnectionCreatedEvent() {
+		//given
+		UUID recipientId = UUID.randomUUID();
+		UUID requesterId = UUID.randomUUID();
+		User recipient = User.builder()
+							 .id(recipientId)
+							 .build();
+		ConnectionRequest connectionRequest = ConnectionRequest.builder()
+															   .recipientId(recipientId)
+															   .requesterId(requesterId)
+															   .build();
+
+		//when
+		Connection connection = recipient.acceptRequest(connectionRequest);
+
+		//then
+		List<DomainEvent<?>> domainEvents = recipient.getDomainEvents();
+		Assertions.assertAll(
+				() -> assertThat(domainEvents).hasSize(1),
+				() -> assertThat(domainEvents.get(0).getDestination()).isEqualTo("connection-created"),
+				() -> assertThat(domainEvents.get(0).getPayload()).isEqualTo(connection)
+		);
+	}
+
 }

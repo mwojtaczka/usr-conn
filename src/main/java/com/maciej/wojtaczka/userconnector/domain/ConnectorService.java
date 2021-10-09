@@ -1,5 +1,6 @@
 package com.maciej.wojtaczka.userconnector.domain;
 
+import com.maciej.wojtaczka.userconnector.domain.model.Connection;
 import com.maciej.wojtaczka.userconnector.domain.model.ConnectionRequest;
 import com.maciej.wojtaczka.userconnector.domain.model.User;
 import org.springframework.stereotype.Service;
@@ -15,14 +16,14 @@ import static java.util.Comparator.comparing;
 public class ConnectorService {
 
 	private final UserService userService;
-	private final ConnectionRequestRepository connectionRequestRepository;
+	private final ConnectionRepository connectionRepository;
 	private final DomainEventPublisher domainEventPublisher;
 
 	public ConnectorService(UserService userService,
-							ConnectionRequestRepository connectionRequestRepository,
+							ConnectionRepository connectionRepository,
 							DomainEventPublisher domainEventPublisher) {
 		this.userService = userService;
-		this.connectionRequestRepository = connectionRequestRepository;
+		this.connectionRepository = connectionRepository;
 		this.domainEventPublisher = domainEventPublisher;
 	}
 
@@ -47,12 +48,40 @@ public class ConnectorService {
 		requester.getDomainEvents()
 				 .forEach(domainEventPublisher::publish);
 
-		return connectionRequestRepository.save(connectionRequest);
+		return connectionRepository.saveConnectionRequest(connectionRequest);
 	}
 
 	public List<ConnectionRequest> fetchPendingRequests(UUID recipientId) {
-		return connectionRequestRepository.findByRecipientId(recipientId).stream()
-										  .sorted(comparing(ConnectionRequest::getCreationTime).reversed())
-										  .collect(Collectors.toList());
+		return connectionRepository.findConnectionRequestByRecipientId(recipientId).stream()
+								   .sorted(comparing(ConnectionRequest::getCreationTime).reversed())
+								   .collect(Collectors.toList());
+	}
+
+	public Connection acceptRequest(ConnectionRequest connectionRequest) {
+		UUID recipientId = connectionRequest.getRecipientId();
+		UUID requesterId = connectionRequest.getRequesterId();
+
+		ConnectionRequest connectionRequestFromRepository =
+				connectionRepository.findConnectionRequest(recipientId, requesterId)
+									.orElseThrow(() -> ConnectionException.connectionRequestNotFound(recipientId, requesterId));
+
+		List<User> users = userService.fetchAll(requesterId, recipientId);
+		users.stream()
+			 .filter(user -> requesterId.equals(user.getId()))
+			 .findFirst()
+			 .orElseThrow(() -> UserException.userNotFound(requesterId));
+		User recipient = users.stream()
+							  .filter(user -> recipientId.equals(user.getId()))
+							  .findFirst()
+							  .orElseThrow(() -> UserException.userNotFound(recipientId));
+
+		Connection newConnection = recipient.acceptRequest(connectionRequestFromRepository);
+
+		connectionRepository.saveConnectionAndRemoveRequest(newConnection, connectionRequestFromRepository);
+
+		recipient.getDomainEvents()
+				 .forEach(domainEventPublisher::publish);
+
+		return newConnection;
 	}
 }
