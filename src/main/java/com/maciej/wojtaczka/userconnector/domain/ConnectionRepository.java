@@ -17,4 +17,5 @@ public interface ConnectionRepository {
 
 	void saveConnectionAndRemoveRequest(Connection connection, ConnectionRequest connectionRequest);
 
+    List<Connection> findConnections(UUID connectionOwnerId);
 }

@@ -1,5 +1,7 @@
 package com.maciej.wojtaczka.userconnector.persistence;
 
+import com.datastax.oss.driver.api.core.cql.SimpleStatement;
+import com.datastax.oss.driver.api.querybuilder.QueryBuilder;
 import com.maciej.wojtaczka.userconnector.domain.ConnectionRepository;
 import com.maciej.wojtaczka.userconnector.domain.model.Connection;
 import com.maciej.wojtaczka.userconnector.domain.model.ConnectionRequest;
@@ -12,6 +14,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.literal;
 
 @Component
 public class ConnectionRepositoryAdapter implements ConnectionRepository {
@@ -53,20 +57,23 @@ public class ConnectionRepositoryAdapter implements ConnectionRepository {
 
 		ConnectionRequestEntity connectionRequestEntity = connectionRequestMapper.toDbEntity(connectionRequest);
 
-		ConnectionEntity connectionForUser1 = ConnectionEntity.builder()
-															  .user1(connection.getUser1())
-															  .user2(connection.getUser2())
-															  .connectionDate(connection.getConnectionDate())
-															  .build();
-		ConnectionEntity connectionForUser2 = ConnectionEntity.builder()
-															  .user1(connection.getUser2())
-															  .user2(connection.getUser1())
-															  .connectionDate(connection.getConnectionDate())
-															  .build();
+		ConnectionEntity connectionForUser1 = ConnectionEntity.from(connection);
+		ConnectionEntity connectionForUser2 = ConnectionEntity.reversedFrom(connection);
 
 		cassandraTemplate.batchOps()
 						 .delete(connectionRequestEntity)
 						 .insert(connectionForUser1, connectionForUser2)
 						 .execute();
+	}
+
+	@Override
+	public List<Connection> findConnections(UUID connectionOwnerId) {
+		SimpleStatement select = QueryBuilder.selectFrom("user_connector", "connection")
+											 .all()
+											 .whereColumn("user1").isEqualTo(literal(connectionOwnerId))
+											 .build();
+		return cassandraTemplate.select(select, ConnectionEntity.class).stream()
+								.map(ConnectionEntity::toModel)
+								.collect(Collectors.toList());
 	}
 }

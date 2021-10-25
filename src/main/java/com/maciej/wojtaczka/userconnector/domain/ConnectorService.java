@@ -84,4 +84,8 @@ public class ConnectorService {
 
 		return newConnection;
 	}
+
+	public List<Connection> fetchUserConnections(UUID connectionOwnerId) {
+		return connectionRepository.findConnections(connectionOwnerId);
+	}
 }

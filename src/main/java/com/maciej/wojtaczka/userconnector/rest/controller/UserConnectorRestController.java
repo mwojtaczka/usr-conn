@@ -54,4 +54,11 @@ public class UserConnectorRestController {
 							 .body(connection);
 	}
 
+	@GetMapping(CONNECTIONS_URL)
+	ResponseEntity<List<Connection>> fetchUserConnections(@RequestParam(USER_PARAM) UUID userId) {
+		List<Connection> connections = connectorService.fetchUserConnections(userId);
+
+		return ResponseEntity.ok(connections);
+	}
+
 }

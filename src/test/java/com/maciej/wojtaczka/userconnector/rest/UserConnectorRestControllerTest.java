@@ -26,13 +26,16 @@ import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-import java.time.Instant;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static com.maciej.wojtaczka.userconnector.rest.controller.UserConnectorRestController.CONNECTIONS_URL;
 import static com.maciej.wojtaczka.userconnector.rest.controller.UserConnectorRestController.CONNECTION_REQUESTS_URL;
 import static com.maciej.wojtaczka.userconnector.rest.controller.UserConnectorRestController.USER_PARAM;
+import static java.time.Instant.parse;
 import static java.time.temporal.ChronoUnit.MILLIS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -80,8 +83,8 @@ class UserConnectorRestControllerTest {
 		//given
 		UUID recipientId = UUID.randomUUID();
 		UUID requesterId = UUID.randomUUID();
-		$.user().withId(requesterId).exists();
-		$.user().withId(recipientId).exists();
+		$.givenUser().withId(requesterId).exists();
+		$.givenUser().withId(recipientId).exists();
 
 		ConnectionRequestBody requestBody = ConnectionRequestBody.builder()
 																 .requesterId(requesterId)
@@ -128,14 +131,12 @@ class UserConnectorRestControllerTest {
 		UUID requesterId2 = UUID.randomUUID();
 		UUID requesterId3 = UUID.randomUUID();
 
-		$.user()
+		$.givenUser()
 		 .withId(recipientId)
-		 .withPendingConnectionRequest().fromRequester(requesterId1).atTime(Instant.parse("2007-12-03T10:15:30.00Z"))
-		 .andThisUser()
-		 .withPendingConnectionRequest().fromRequester(requesterId2).atTime(Instant.parse("2007-12-03T10:16:30.00Z"))
-		 .andThisUser()
-		 .withPendingConnectionRequest().fromRequester(requesterId3).atTime(Instant.parse("2007-12-03T10:17:30.00Z"))
-		 .andThisUser()
+		 .withPendingConnectionRequest().fromRequester(requesterId1).atTime(parse("2007-12-03T10:15:30.00Z"))
+		 .andAlso().fromRequester(requesterId2).atTime(parse("2007-12-03T10:16:30.00Z"))
+		 .andAlso().fromRequester(requesterId3).atTime(parse("2007-12-03T10:17:30.00Z"))
+		 .andTheGivenUser()
 		 .exists();
 
 		//when
@@ -156,10 +157,10 @@ class UserConnectorRestControllerTest {
 		//given
 		UUID recipientId = UUID.randomUUID();
 		UUID requesterId = UUID.randomUUID();
-		$.user().withId(requesterId).exists();
-		$.user().withId(recipientId)
+		$.givenUser().withId(requesterId).exists();
+		$.givenUser().withId(recipientId)
 		 .withPendingConnectionRequest().fromRequester(requesterId)
-		 .andThisUser()
+		 .andTheGivenUser()
 		 .exists();
 
 		ConnectionRequest connectionRequest = ConnectionRequest.builder()
@@ -212,6 +213,41 @@ class UserConnectorRestControllerTest {
 												.orElseThrow(() -> new RuntimeException("No event"));
 		JSONAssert.assertEquals(jsonConnection, capturedEvent, false);
 		assertThat(kafkaTestListener.noMoreMessagesOnTopic(User.DomainEvents.CONNECTION_CREATED, 50)).isTrue();
+	}
+
+	@Test
+	void shouldFetchExistingConnectionsForGivenUser() throws Exception {
+		//given
+		UUID userId = UUID.randomUUID();
+		UUID connectedUserId1 = UUID.randomUUID();
+		UUID connectedUserId2 = UUID.randomUUID();
+		UUID connectedUserId3 = UUID.randomUUID();
+
+		$.givenUser()
+		 .withId(userId)
+		 .connected().withUser(connectedUserId1).atTime(parse("2007-12-03T10:15:30.00Z"))
+		 .andAlso().withUser(connectedUserId2).atTime(parse("2007-12-03T10:16:30.00Z"))
+		 .andAlso().withUser(connectedUserId3).atTime(parse("2007-12-03T10:17:30.00Z"))
+		 .andTheGivenUser()
+		 .exists();
+
+		var c1 = Connection.builder().user1(userId).user2(connectedUserId1).connectionDate(parse("2007-12-03T10:15:30.00Z")).build();
+		var c2 = Connection.builder().user1(userId).user2(connectedUserId2).connectionDate(parse("2007-12-03T10:16:30.00Z")).build();
+		var c3 = Connection.builder().user1(userId).user2(connectedUserId3).connectionDate(parse("2007-12-03T10:17:30.00Z")).build();
+		Set<Connection> expectedConnections = Set.of(c1, c2, c3);
+
+		//when
+		String connectionsJson = mockMvc.perform(get(CONNECTIONS_URL)
+													 .param(USER_PARAM, userId.toString())
+													 .accept(APPLICATION_JSON))
+									//then
+									.andExpect(status().isOk())
+									.andExpect(jsonPath("$", Matchers.hasSize(3)))
+									.andReturn().getResponse().getContentAsString();
+
+		Connection[] connections = objectMapper.readValue(connectionsJson, Connection[].class);
+
+		assertThat(new HashSet<>(Arrays.asList(connections))).isEqualTo(expectedConnections);
 	}
 
 	@SneakyThrows
