@@ -1,4 +1,4 @@
-package com.maciej.wojtaczka.userconnector.persistance.entity;
+package com.maciej.wojtaczka.userconnector.persistence.entity;
 
 import lombok.Builder;
 import lombok.Value;

@@ -5,8 +5,8 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.maciej.wojtaczka.userconnector.domain.model.User;
-import com.maciej.wojtaczka.userconnector.persistance.ConnectionRequestCassandraRepository;
-import com.maciej.wojtaczka.userconnector.persistance.entity.ConnectionRequestEntity;
+import com.maciej.wojtaczka.userconnector.persistence.ConnectionRequestCassandraRepository;
+import com.maciej.wojtaczka.userconnector.persistence.entity.ConnectionRequestEntity;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Component;
 

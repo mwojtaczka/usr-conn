@@ -1,7 +1,7 @@
-package com.maciej.wojtaczka.userconnector.persistance;
+package com.maciej.wojtaczka.userconnector.persistence;
 
 import com.maciej.wojtaczka.userconnector.domain.model.ConnectionRequest;
-import com.maciej.wojtaczka.userconnector.persistance.entity.ConnectionRequestEntity;
+import com.maciej.wojtaczka.userconnector.persistence.entity.ConnectionRequestEntity;
 import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")

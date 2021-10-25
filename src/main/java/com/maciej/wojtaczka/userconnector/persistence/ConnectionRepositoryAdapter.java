@@ -1,10 +1,10 @@
-package com.maciej.wojtaczka.userconnector.persistance;
+package com.maciej.wojtaczka.userconnector.persistence;
 
 import com.maciej.wojtaczka.userconnector.domain.ConnectionRepository;
 import com.maciej.wojtaczka.userconnector.domain.model.Connection;
 import com.maciej.wojtaczka.userconnector.domain.model.ConnectionRequest;
-import com.maciej.wojtaczka.userconnector.persistance.entity.ConnectionEntity;
-import com.maciej.wojtaczka.userconnector.persistance.entity.ConnectionRequestEntity;
+import com.maciej.wojtaczka.userconnector.persistence.entity.ConnectionEntity;
+import com.maciej.wojtaczka.userconnector.persistence.entity.ConnectionRequestEntity;
 import org.springframework.data.cassandra.core.CassandraOperations;
 import org.springframework.stereotype.Component;
 
