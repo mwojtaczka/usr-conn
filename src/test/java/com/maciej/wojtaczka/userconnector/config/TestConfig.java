@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 
 @Configuration
-public class TextConfig {
+public class TestConfig {
 
 	@Bean
 	WireMockServer wireMockServer() {
