@@ -1,8 +1,8 @@
 package com.maciej.wojtaczka.userconnector.rest;
 
+import com.datastax.oss.driver.api.core.CqlSession;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
-import com.maciej.wojtaczka.userconnector.config.CassandraConfig;
 import com.maciej.wojtaczka.userconnector.domain.model.Connection;
 import com.maciej.wojtaczka.userconnector.domain.model.ConnectionRequest;
 import com.maciej.wojtaczka.userconnector.domain.model.User;
@@ -12,20 +12,26 @@ import com.maciej.wojtaczka.userconnector.rest.controller.dto.ConnectionRequestB
 import com.maciej.wojtaczka.userconnector.utils.KafkaTestListener;
 import com.maciej.wojtaczka.userconnector.utils.UserFixtures;
 import lombok.SneakyThrows;
+import org.cassandraunit.CQLDataLoader;
+import org.cassandraunit.dataset.cql.ClassPathCQLDataSet;
+import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
 import org.hamcrest.Matchers;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.cassandra.core.CassandraOperations;
 import org.springframework.kafka.test.context.EmbeddedKafka;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -51,7 +57,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebAppConfiguration
 @AutoConfigureMockMvc
 @EmbeddedKafka(partitions = 1, brokerProperties = { "listeners=PLAINTEXT://localhost:9092", "port=9092" })
-@Import({ CassandraConfig.class })
+@DirtiesContext
+@ActiveProfiles("test")
 class UserConnectorRestControllerTest {
 
 	@Autowired
@@ -71,6 +78,13 @@ class UserConnectorRestControllerTest {
 
 	@Autowired
 	private KafkaTestListener kafkaTestListener;
+
+	@BeforeAll
+	static void startCassandra() throws IOException, InterruptedException {
+		EmbeddedCassandraServerHelper.startEmbeddedCassandra();
+		CqlSession session = EmbeddedCassandraServerHelper.getSession();
+		new CQLDataLoader(session).load(new ClassPathCQLDataSet("schema.cql"));
+	}
 
 	@BeforeEach
 	void setupEach() {

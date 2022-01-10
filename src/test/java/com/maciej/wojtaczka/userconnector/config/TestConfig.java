@@ -11,7 +11,7 @@ public class TestConfig {
 
 	@Bean
 	WireMockServer wireMockServer() {
-		WireMockServer wireMockServer = new WireMockServer(options().port(8081));
+		WireMockServer wireMockServer = new WireMockServer(options().port(7081));
 		wireMockServer.start();
 		return wireMockServer;
 	}

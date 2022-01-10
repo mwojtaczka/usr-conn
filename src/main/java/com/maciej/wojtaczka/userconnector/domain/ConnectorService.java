@@ -33,6 +33,8 @@ public class ConnectorService {
 			throw new IllegalArgumentException("One of indices is null");
 		}
 
+		//TODO: check if connection or request already exists
+
 		List<User> users = userService.fetchAll(requesterId, recipientId);
 		User requester = users.stream()
 							  .filter(user -> requesterId.equals(user.getId()))
@@ -52,7 +54,7 @@ public class ConnectorService {
 	}
 
 	public List<ConnectionRequest> fetchPendingRequests(UUID recipientId) {
-		return connectionRepository.findConnectionRequestByRecipientId(recipientId).stream()
+		return connectionRepository.findConnectionRequestsByRecipientId(recipientId).stream()
 								   .sorted(comparing(ConnectionRequest::getCreationTime).reversed())
 								   .collect(Collectors.toList());
 	}

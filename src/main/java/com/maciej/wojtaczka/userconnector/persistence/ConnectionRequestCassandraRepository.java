@@ -1,6 +1,5 @@
 package com.maciej.wojtaczka.userconnector.persistence;
 
-import com.maciej.wojtaczka.userconnector.domain.model.ConnectionRequest;
 import com.maciej.wojtaczka.userconnector.persistence.entity.ConnectionRequestEntity;
 import org.springframework.data.cassandra.repository.CassandraRepository;
 import org.springframework.stereotype.Repository;
@@ -14,5 +13,5 @@ public interface ConnectionRequestCassandraRepository extends CassandraRepositor
 
 	List<ConnectionRequestEntity> findByRecipientId(UUID recipientId);
 
-	Optional<ConnectionRequest> findByRecipientIdAndRequesterId(UUID recipientId, UUID requesterId);
+	Optional<ConnectionRequestEntity> findByRecipientIdAndRequesterId(UUID recipientId, UUID requesterId);
 }

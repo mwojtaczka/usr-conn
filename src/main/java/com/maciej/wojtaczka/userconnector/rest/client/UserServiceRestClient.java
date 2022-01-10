@@ -7,6 +7,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -23,15 +24,13 @@ public class UserServiceRestClient implements UserService {
 	@Override
 	public List<User> fetchAll(UUID userId, UUID... otherIds) {
 
-		StringBuilder uriParamsBuilder = new StringBuilder("id=" + userId.toString());
+		StringBuilder indices = new StringBuilder(userId.toString());
 
 		for (UUID id : otherIds) {
-			uriParamsBuilder.append(",").append(id);
+			indices.append(",").append(id);
 		}
 
-		String uriParams = uriParamsBuilder.toString();
-
-		User[] users = restTemplate.getForObject(GET_USERS_BY_IDS, User[].class, uriParams);
+		User[] users = restTemplate.getForObject(GET_USERS_BY_IDS + "?id={ids}", User[].class, Map.of("ids", indices));
 
 		if (users == null) {
 			return List.of();

@@ -3,7 +3,6 @@ package com.maciej.wojtaczka.userconnector.utils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
-import com.github.tomakehurst.wiremock.client.WireMock;
 import com.maciej.wojtaczka.userconnector.domain.model.Connection;
 import com.maciej.wojtaczka.userconnector.domain.model.ConnectionRequest;
 import com.maciej.wojtaczka.userconnector.domain.model.User;
@@ -18,6 +17,10 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.matching;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.maciej.wojtaczka.userconnector.rest.client.UserServiceRestClient.GET_USERS_BY_IDS;
 
 @Component
@@ -77,10 +80,11 @@ public class UserFixtures {
 
 			String jsonResponseBody = objectMapper.writeValueAsString(existingUsers);
 
-			ResponseDefinitionBuilder response = WireMock.aResponse()
-														 .withHeader("Content-type", "application/json")
-														 .withBody(jsonResponseBody);
-			wireMockServer.stubFor(WireMock.get(WireMock.urlEqualTo(GET_USERS_BY_IDS))
+			ResponseDefinitionBuilder response = aResponse()
+					.withHeader("Content-type", "application/json")
+					.withBody(jsonResponseBody);
+			wireMockServer.stubFor(get(urlPathEqualTo(GET_USERS_BY_IDS))
+										   .withQueryParam("id", matching(".+"))
 										   .willReturn(response));
 
 			pendingRequestsForUser

@@ -11,7 +11,7 @@ public interface ConnectionRepository {
 
 	ConnectionRequest saveConnectionRequest(ConnectionRequest connectionRequest);
 
-	List<ConnectionRequest> findConnectionRequestByRecipientId(UUID recipientId);
+	List<ConnectionRequest> findConnectionRequestsByRecipientId(UUID recipientId);
 
 	Optional<ConnectionRequest> findConnectionRequest(UUID recipientId, UUID requesterId);
 

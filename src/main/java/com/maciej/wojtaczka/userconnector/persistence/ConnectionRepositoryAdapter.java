@@ -41,7 +41,7 @@ public class ConnectionRepositoryAdapter implements ConnectionRepository {
 	}
 
 	@Override
-	public List<ConnectionRequest> findConnectionRequestByRecipientId(UUID recipientId) {
+	public List<ConnectionRequest> findConnectionRequestsByRecipientId(UUID recipientId) {
 		return repository.findByRecipientId(recipientId).stream()
 						 .map(connectionRequestMapper::toModel)
 						 .collect(Collectors.toList());
@@ -49,7 +49,8 @@ public class ConnectionRepositoryAdapter implements ConnectionRepository {
 
 	@Override
 	public Optional<ConnectionRequest> findConnectionRequest(UUID recipientId, UUID requesterId) {
-		return repository.findByRecipientIdAndRequesterId(recipientId, requesterId);
+		return repository.findByRecipientIdAndRequesterId(recipientId, requesterId)
+						 .map(connectionRequestMapper::toModel);
 	}
 
 	@Override
