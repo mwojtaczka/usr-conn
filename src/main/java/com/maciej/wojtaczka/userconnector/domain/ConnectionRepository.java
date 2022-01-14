@@ -6,6 +6,7 @@ import com.maciej.wojtaczka.userconnector.domain.model.ConnectionRequest;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public interface ConnectionRepository {
 
@@ -13,9 +14,11 @@ public interface ConnectionRepository {
 
 	List<ConnectionRequest> findConnectionRequestsByRecipientId(UUID recipientId);
 
-	Optional<ConnectionRequest> findConnectionRequest(UUID recipientId, UUID requesterId);
+	CompletableFuture<Optional<ConnectionRequest>> findConnectionRequest(UUID recipientId, UUID requesterId);
 
 	void saveConnectionAndRemoveRequest(Connection connection, ConnectionRequest connectionRequest);
 
-    List<Connection> findConnections(UUID connectionOwnerId);
+    List<Connection> findUserConnections(UUID connectionOwnerId);
+
+	CompletableFuture<Optional<Connection>> findConnection(UUID connectionOwnerId, UUID connectedUserId);
 }

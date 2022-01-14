@@ -32,6 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -120,14 +121,14 @@ class UserConnectorRestControllerTest {
 
 		//verify persistence
 		ConnectionRequest connectionRequest = objectMapper.readValue(jsonConnectionRequest, ConnectionRequest.class);
-		List<ConnectionRequestEntity> fromDb = cassandraOperations.select(
+		List<ConnectionRequestEntity> connectionRequestsFromDb = cassandraOperations.select(
 				String.format("select * from user_connector.connection_request where recipient_id = %s;", recipientId),
 				ConnectionRequestEntity.class);
 		assertAll(
-				() -> assertThat(fromDb).hasSize(1),
-				() -> assertThat(fromDb.get(0).getRecipientId()).isEqualTo(recipientId),
-				() -> assertThat(fromDb.get(0).getRequesterId()).isEqualTo(requesterId),
-				() -> assertThat(fromDb.get(0).getCreationTime()).isEqualTo(connectionRequest.getCreationTime().truncatedTo(MILLIS))
+				() -> assertThat(connectionRequestsFromDb).hasSize(1),
+				() -> assertThat(connectionRequestsFromDb.get(0).getRecipientId()).isEqualTo(recipientId),
+				() -> assertThat(connectionRequestsFromDb.get(0).getRequesterId()).isEqualTo(requesterId),
+				() -> assertThat(connectionRequestsFromDb.get(0).getCreationTime()).isEqualTo(connectionRequest.getCreationTime().truncatedTo(MILLIS))
 		);
 
 		//verify publishing events
@@ -135,6 +136,76 @@ class UserConnectorRestControllerTest {
 												.orElseThrow(() -> new RuntimeException("No event"));
 		JSONAssert.assertEquals(jsonConnectionRequest, capturedEvent, false);
 		assertThat(kafkaTestListener.noMoreMessagesOnTopic(User.DomainEvents.CONNECTION_REQUESTED, 50)).isTrue();
+	}
+
+	@Test
+	void shouldNotCreateConnectionRequest_whenConnectionRequestExists() throws Exception {
+		//given
+		UUID recipientId = UUID.randomUUID();
+		UUID requesterId = UUID.randomUUID();
+		$.givenUser().withId(requesterId).exists();
+		$.givenUser().withId(recipientId)
+		 .withPendingConnectionRequest().fromRequester(requesterId).atTime(Instant.parse("2007-12-03T10:15:30.00Z"))
+		 .andTheGivenUser()
+		 .exists();
+
+		ConnectionRequestBody requestBody = ConnectionRequestBody.builder()
+																 .requesterId(requesterId)
+																 .recipientId(recipientId)
+																 .build();
+
+		//when
+		ResultActions result = mockMvc.perform(post(CONNECTION_REQUESTS_URL)
+													   .content(asJsonString(requestBody))
+													   .contentType(APPLICATION_JSON)
+													   .accept(APPLICATION_JSON));
+		//then
+		//verify response
+		result.andExpect(status().isBadRequest());
+
+		//verify persistence
+		List<ConnectionRequestEntity> connectionRequestsFromDb = cassandraOperations.select(
+				String.format("select * from user_connector.connection_request where recipient_id = %s;", recipientId),
+				ConnectionRequestEntity.class);
+		assertAll(
+				() -> assertThat(connectionRequestsFromDb).hasSize(1),
+				() -> assertThat(connectionRequestsFromDb.get(0).getRecipientId()).isEqualTo(recipientId),
+				() -> assertThat(connectionRequestsFromDb.get(0).getRequesterId()).isEqualTo(requesterId),
+				() -> assertThat(connectionRequestsFromDb.get(0).getCreationTime()).isEqualTo(Instant.parse("2007-12-03T10:15:30.00Z"))
+		);
+	}
+
+	@Test
+	void shouldNotCreateConnectionRequest_whenConnectionExists() throws Exception {
+		//given
+		UUID recipientId = UUID.randomUUID();
+		UUID requesterId = UUID.randomUUID();
+		$.givenUser().withId(requesterId)
+		 .connected().withUser(recipientId)
+		 .andTheGivenUser()
+		 .exists();
+		$.givenUser().withId(recipientId).exists();
+
+		ConnectionRequestBody requestBody = ConnectionRequestBody.builder()
+																 .requesterId(requesterId)
+																 .recipientId(recipientId)
+																 .build();
+
+		//when
+		ResultActions result = mockMvc.perform(post(CONNECTION_REQUESTS_URL)
+													   .content(asJsonString(requestBody))
+													   .contentType(APPLICATION_JSON)
+													   .accept(APPLICATION_JSON));
+		//then
+		//verify response
+		result.andExpect(status().isBadRequest());
+
+		//verify persistence
+		List<ConnectionRequestEntity> connectionRequestsFromDb = cassandraOperations.select(
+				String.format("select * from user_connector.connection_request where recipient_id = %s;", recipientId),
+				ConnectionRequestEntity.class);
+
+		assertThat(connectionRequestsFromDb).isEmpty();
 	}
 
 	@Test
@@ -167,7 +238,7 @@ class UserConnectorRestControllerTest {
 	}
 
 	@Test
-	void shouldCreateConnectionAndEmmitEvent_whenConnectionAccepted() throws Exception {
+	void shouldCreateConnectionAndEmmitEvent_whenConnectionRequestAccepted() throws Exception {
 		//given
 		UUID recipientId = UUID.randomUUID();
 		UUID requesterId = UUID.randomUUID();

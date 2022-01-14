@@ -19,7 +19,7 @@ import java.util.UUID;
 public class UserConnectorRestController {
 
 	public final static String CONNECTION_REQUESTS_URL = "/v1/connection-requests";
-	public final static String USER_PARAM = "user";
+	public final static String USER_PARAM = "usersId";
 	public final static String CONNECTIONS_URL = "/v1/connections";
 	private final ConnectorService connectorService;
 

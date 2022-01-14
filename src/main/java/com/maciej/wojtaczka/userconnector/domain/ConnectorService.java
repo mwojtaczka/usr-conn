@@ -7,7 +7,9 @@ import org.springframework.stereotype.Service;
 
 import javax.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static java.util.Comparator.comparing;
@@ -33,7 +35,15 @@ public class ConnectorService {
 			throw new IllegalArgumentException("One of indices is null");
 		}
 
-		//TODO: check if connection or request already exists
+		CompletableFuture<Optional<Connection>> connectionFuture =
+				connectionRepository.findConnection(requesterId, recipientId);
+		CompletableFuture<Optional<ConnectionRequest>> connectionRequestFuture =
+				connectionRepository.findConnectionRequest(recipientId, requesterId);
+
+		CompletableFuture.allOf(connectionFuture, connectionRequestFuture);
+		if (connectionFuture.join().isPresent() || connectionRequestFuture.join().isPresent()) {
+			throw ConnectionException.cannotSendConnectionRequest(requesterId, recipientId, "Connection or connection request already exist");
+		}
 
 		List<User> users = userService.fetchAll(requesterId, recipientId);
 		User requester = users.stream()
@@ -64,7 +74,7 @@ public class ConnectorService {
 		UUID requesterId = connectionRequest.getRequesterId();
 
 		ConnectionRequest connectionRequestFromRepository =
-				connectionRepository.findConnectionRequest(recipientId, requesterId)
+				connectionRepository.findConnectionRequest(recipientId, requesterId).join()
 									.orElseThrow(() -> ConnectionException.connectionRequestNotFound(recipientId, requesterId));
 
 		List<User> users = userService.fetchAll(requesterId, recipientId);
@@ -88,6 +98,6 @@ public class ConnectorService {
 	}
 
 	public List<Connection> fetchUserConnections(UUID connectionOwnerId) {
-		return connectionRepository.findConnections(connectionOwnerId);
+		return connectionRepository.findUserConnections(connectionOwnerId);
 	}
 }
