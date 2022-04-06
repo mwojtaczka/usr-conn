@@ -1,10 +1,12 @@
 package com.maciej.wojtaczka.userconnector.rest;
 
 import com.datastax.oss.driver.api.core.CqlSession;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.maciej.wojtaczka.userconnector.domain.model.Connection;
 import com.maciej.wojtaczka.userconnector.domain.model.ConnectionRequest;
+import com.maciej.wojtaczka.userconnector.domain.model.Envelope;
 import com.maciej.wojtaczka.userconnector.domain.model.User;
 import com.maciej.wojtaczka.userconnector.persistence.entity.ConnectionEntity;
 import com.maciej.wojtaczka.userconnector.persistence.entity.ConnectionRequestEntity;
@@ -134,8 +136,13 @@ class UserConnectorRestControllerTest {
 		//verify publishing events
 		String capturedEvent = kafkaTestListener.receiveFirstContentFromTopic(User.DomainEvents.CONNECTION_REQUESTED)
 												.orElseThrow(() -> new RuntimeException("No event"));
-		JSONAssert.assertEquals(jsonConnectionRequest, capturedEvent, false);
-		assertThat(kafkaTestListener.noMoreMessagesOnTopic(User.DomainEvents.CONNECTION_REQUESTED, 50)).isTrue();
+		String payload = objectMapper.readTree(capturedEvent).findValue("payload").toString();
+		Envelope<Connection> envelope = objectMapper.readValue(capturedEvent, new TypeReference<>() {
+		});
+		Set<UUID> recipients = envelope.getRecipients();
+		JSONAssert.assertEquals(jsonConnectionRequest, payload, false);
+		assertThat(recipients).containsExactly(recipientId);
+		assertThat(kafkaTestListener.noMoreMessagesOnTopic(User.DomainEvents.CONNECTION_CREATED, 50)).isTrue();
 	}
 
 	@Test
@@ -296,7 +303,12 @@ class UserConnectorRestControllerTest {
 		//verify publishing event
 		String capturedEvent = kafkaTestListener.receiveFirstContentFromTopic(User.DomainEvents.CONNECTION_CREATED)
 												.orElseThrow(() -> new RuntimeException("No event"));
-		JSONAssert.assertEquals(jsonConnection, capturedEvent, false);
+		String payload = objectMapper.readTree(capturedEvent).findValue("payload").toString();
+		Envelope<Connection> envelope = objectMapper.readValue(capturedEvent, new TypeReference<>() {
+		});
+		Set<UUID> recipients = envelope.getRecipients();
+		JSONAssert.assertEquals(jsonConnection, payload, false);
+		assertThat(recipients).containsExactly(requesterId);
 		assertThat(kafkaTestListener.noMoreMessagesOnTopic(User.DomainEvents.CONNECTION_CREATED, 50)).isTrue();
 	}
 

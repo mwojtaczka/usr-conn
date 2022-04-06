@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Value;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 @EqualsAndHashCode(callSuper = false)
@@ -43,7 +44,7 @@ public class User extends DomainModel {
 											 .connectionDate(Instant.now())
 											 .build();
 
-		addEventToPublish(DomainEvents.connectionCreated(newConnection));
+		addEventToPublish(DomainEvents.connectionCreated(newConnection, connectionRequest.getRequesterId()));
 
 		return newConnection;
 	}
@@ -53,11 +54,11 @@ public class User extends DomainModel {
 		public static final String CONNECTION_CREATED = "connection-created";
 
 		static DomainEvent<ConnectionRequest> connectionRequested(ConnectionRequest connectionRequest) {
-			return new DomainEvent<>(CONNECTION_REQUESTED, connectionRequest);
+			return new DomainEvent<>(CONNECTION_REQUESTED, Set.of(connectionRequest.getRecipientId()), connectionRequest);
 		}
 
-		static DomainEvent<Connection> connectionCreated(Connection connection) {
-			return new DomainEvent<>(CONNECTION_CREATED, connection);
+		static DomainEvent<Connection> connectionCreated(Connection connection, UUID requesterId) {
+			return new DomainEvent<>(CONNECTION_CREATED, Set.of(requesterId), connection);
 		}
 
 	}
